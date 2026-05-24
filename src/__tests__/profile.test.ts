@@ -109,7 +109,7 @@ describe("PUT /api/user-settings logic", () => {
   });
 
   it("calls updateOne with correct upsert payload", async () => {
-    const updateOne = vi.fn(async () => ({ modifiedCount: 0, upsertedCount: 1 }));
+    const updateOne = vi.fn(async (..._args: any[]) => ({ modifiedCount: 0, upsertedCount: 1 }));
     const fakeCollection = { updateOne };
 
     await fakeCollection.updateOne(

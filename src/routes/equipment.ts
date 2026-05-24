@@ -42,7 +42,7 @@ export function registerEquipmentRoutes(app: express.Application) {
       .sort({ name: 1 })
       .toArray();
 
-    const enriched = await Promise.all(rows.map(async (row) => {
+    const enriched = await Promise.all(rows.map(async (row: any) => {
       const flat = flatDoc(row) as any;
       if (row.client_id) {
         try {
@@ -105,7 +105,7 @@ export function registerEquipmentRoutes(app: express.Application) {
       return;
     }
 
-    const row = await col("equipment").findOne({ ...idFilter(req.params.id), user_id: userId });
+    const row = await col("equipment").findOne({ ...idFilter(req.params.id), user_id: userId }) as any;
     if (!row) {
       res.status(404).json({ error: "Not found" });
       return;
