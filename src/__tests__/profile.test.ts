@@ -22,7 +22,7 @@ function mockCol(data: Record<string, any[]> = {}) {
           return true;
         }).length;
       }),
-      updateOne: vi.fn(async () => ({ modifiedCount: 1, upsertedCount: 0 })),
+      updateOne: vi.fn(async (..._args: any[]) => ({ modifiedCount: 1, upsertedCount: 0 })),
     };
   };
 }
@@ -145,3 +145,4 @@ describe("reminder_advance_days round-trip", () => {
     expect(display).toBe("30");
   });
 });
+
