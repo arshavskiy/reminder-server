@@ -61,6 +61,7 @@ export async function importFile(originalPath: string, push?: PushFn, userId?: s
   if (!existsSync(managedPath)) {
     copyFileSync(originalPath, managedPath);
   }
+  console.log(`[importer] Local copy: ${managedPath}`);
 
   // Upload to S3-compatible object storage if configured
   let spacesKey: string | null = null;
@@ -69,12 +70,14 @@ export async function importFile(originalPath: string, push?: PushFn, userId?: s
     try {
       spacesKey = `documents/${fileHash}${ext}`;
       spacesUrl = await uploadToSpaces(managedPath, spacesKey, mimeType);
-      console.log(`[importer] Uploaded to object storage: ${spacesKey}`);
+      console.log(`[importer] S3 upload: ${spacesKey} → ${spacesUrl}`);
     } catch (err) {
       console.error(`[importer] Object storage upload failed, keeping local copy:`, err);
       spacesKey = null;
       spacesUrl = null;
     }
+  } else {
+    console.log(`[importer] Object storage not configured — local only`);
   }
 
   const now = new Date();
@@ -238,6 +241,15 @@ export async function processDocument(
   await col("documents").updateOne(docFilter, {
     $set: { processing_status: "done", updated_at: new Date() },
   });
+
+  if (userId) {
+    await col("user_settings").updateOne(
+      { user_id: userId },
+      { $inc: { scanned_count: 1 }, $setOnInsert: { user_id: userId } },
+      { upsert: true }
+    );
+  }
+
   push?.({ type: "document:done", documentId: documentId as any, status: "done" });
   console.log(`[importer] Done processing document ${documentId}`);
 }

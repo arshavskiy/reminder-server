@@ -80,7 +80,7 @@ describe("scanFileForKeys", () => {
   });
 
   it("detects an OpenAI key", () => {
-    const p = write("openai.env", "OPENAI_API_KEY=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");
+    const p = write("openai.env", "OPENAI_LOCAL_API_KEY=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");
     const r = scanFileForKeys(p);
     const match = r.found.find((f) => f.settingKey === "openAiKey");
     expect(match).toBeDefined();

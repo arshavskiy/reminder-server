@@ -84,9 +84,27 @@ if (process.env.NODE_ENV === "production" && existsSync(STATIC_DIR)) {
 }
 
 // ── HTTP server ───────────────────────────────────────────────────────────────
+async function backfillScannedCounts() {
+  const { col } = await import("./db/db.js");
+  const counts = await col("documents").aggregate([
+    { $match: { processing_status: "done", user_id: { $exists: true } } },
+    { $group: { _id: "$user_id", count: { $sum: 1 } } },
+  ]).toArray() as { _id: string; count: number }[];
+
+  for (const { _id: userId, count } of counts) {
+    // Only set if field is missing — never overwrite an already-tracked counter
+    await col("user_settings").updateOne(
+      { user_id: userId, scanned_count: { $exists: false } },
+      { $set: { scanned_count: count } }
+    );
+  }
+  if (counts.length) console.log(`[startup] Backfilled scanned_count for ${counts.length} user(s)`);
+}
+
 async function main() {
   const settings = loadSettings();
   await connectDb();
+  await backfillScannedCounts();
   await seedBuiltinTemplates();
   await seedDefaultEmailTemplate();
 

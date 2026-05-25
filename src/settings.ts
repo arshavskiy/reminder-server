@@ -1,54 +1,11 @@
 import {join} from "path";
-import {existsSync, mkdirSync, readFileSync, writeFileSync} from "fs";
+import {mkdirSync} from "fs";
 import type {AppSettings} from "../src/shared/types.js";
 
 export type { AppSettings };
 
-const DEFAULTS: AppSettings = {
-  theme: "light",
-  port: 3737,
-
-  aiBackend: "openai",
-  openAiKey: process.env.OPENAI_API_KEY ?? "",
-  openAiModel: "gpt-4o-mini",
-  ollamaUrl: "http://localhost:11434",
-  ollamaModel: "llama3.1",
-
-  ocrLanguage: "heb+eng",
-  autoExtract: true,
-  extractionMaxChars: 8000,
-
-  smtpHost: process.env.SMTP_HOST ?? "",
-  smtpPort: process.env.SMTP_PORT ? parseInt(process.env.SMTP_PORT) : 587,
-  smtpSecure: process.env.SMTP_SECURE === "true",
-  smtpUser: process.env.SMTP_USER ?? "",
-  smtpPass: process.env.SMTP_PASS ?? "",
-  smtpRejectUnauthorized: true,
-  emailFrom: process.env.EMAIL_FROM ?? "",
-  emailFromName: process.env.EMAIL_FROM_NAME ?? " ReminderOCR ",
-
-  reminderEnabled: true,
-  reminderAdvanceDays: [90, 60, 30],
-  reminderCheckIntervalMs: 60_000,
-  testEmail: "",
-  testEmailTemplateId: null,
-
-  watchFolderEnabled: false,
-  watchFolder: "",
-
-  // Phase 2: Google OAuth
-  googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
-  googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
-  googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3737/auth/google/callback",
-  sessionSecret: process.env.SESSION_SECRET ?? "",
-  allowedEmails: process.env.ALLOWED_EMAILS?.split(",").map(e => e.trim()) ?? [],
-
-  userDocumentLimit: parseInt(process.env.USER_DOCUMENT_LIMIT ?? "25"),
-};
-
 function resolveDataDir(): string {
   if (process.env.DATA_DIR) return process.env.DATA_DIR;
-  // In dev: ./data relative to project root; in production same
   return join(process.cwd(), "data");
 }
 
@@ -58,66 +15,120 @@ export function getDataDir(): string {
   return _dataDir;
 }
 
-const SETTINGS_PATH = join(_dataDir, "settings.json");
+function buildSettings(): AppSettings {
+  mkdirSync(_dataDir, { recursive: true });
+  const mask = (v?: string) => v ? v.slice(0, 6) + "..." + v.slice(-4) : "(unset)";
+  const bool = (v?: string) => v ?? "(unset)";
+  const e = process.env;
+  console.log("[settings] Loaded env:");
+  console.log(`  PORT                     = ${e.PORT ?? "(unset)"}`);
+  console.log(`  MONGODB_URI              = ${e.MONGODB_URI ? "(set)" : "(unset)"}`);
+  console.log(`  MONGODB_DB               = ${e.MONGODB_DB ?? "(unset)"}`);
+  console.log(`  DATA_DIR                 = ${e.DATA_DIR || "(default ./data)"}`);
+  console.log(`  AI_BACKEND               = ${e.AI_BACKEND ?? "(unset)"}`);
+  console.log(`  OPENAI_LOCAL_API_KEY     = ${mask(e.OPENAI_LOCAL_API_KEY)}`);
+  console.log(`  OPENAI_MODEL             = ${e.OPENAI_MODEL ?? "(unset)"}`);
+  console.log(`  OLLAMA_URL               = ${e.OLLAMA_URL ?? "(unset)"}`);
+  console.log(`  OLLAMA_MODEL             = ${e.OLLAMA_MODEL ?? "(unset)"}`);
+  console.log(`  OCR_LANGUAGE             = ${e.OCR_LANGUAGE ?? "(unset)"}`);
+  console.log(`  AUTO_EXTRACT             = ${bool(e.AUTO_EXTRACT)}`);
+  console.log(`  EXTRACTION_MAX_CHARS     = ${e.EXTRACTION_MAX_CHARS ?? "(unset)"}`);
+  console.log(`  GOOGLE_CLIENT_ID         = ${mask(e.GOOGLE_CLIENT_ID)}`);
+  console.log(`  GOOGLE_CLIENT_SECRET     = ${mask(e.GOOGLE_CLIENT_SECRET)}`);
+  console.log(`  GOOGLE_REDIRECT_URI      = ${e.GOOGLE_REDIRECT_URI ?? "(unset)"}`);
+  console.log(`  ALLOWED_EMAILS           = ${e.ALLOWED_EMAILS || "(unset)"}`);
+  console.log(`  SESSION_SECRET           = ${e.SESSION_SECRET ? "(set)" : "(unset)"}`);
+  console.log(`  SMTP_HOST                = ${e.SMTP_HOST ?? "(unset)"}`);
+  console.log(`  SMTP_PORT                = ${e.SMTP_PORT ?? "(unset)"}`);
+  console.log(`  SMTP_SECURE              = ${bool(e.SMTP_SECURE)}`);
+  console.log(`  SMTP_USER                = ${e.SMTP_USER ?? "(unset)"}`);
+  console.log(`  SMTP_PASS                = ${e.SMTP_PASS ? "(set)" : "(unset)"}`);
+  console.log(`  SMTP_REJECT_UNAUTHORIZED = ${bool(e.SMTP_REJECT_UNAUTHORIZED)}`);
+  console.log(`  EMAIL_FROM               = ${e.EMAIL_FROM ?? "(unset)"}`);
+  console.log(`  EMAIL_FROM_NAME          = ${e.EMAIL_FROM_NAME ?? "(unset)"}`);
+  console.log(`  REMINDER_ENABLED         = ${bool(e.REMINDER_ENABLED)}`);
+  console.log(`  REMINDER_ADVANCE_DAYS    = ${e.REMINDER_ADVANCE_DAYS ?? "(unset)"}`);
+  console.log(`  REMINDER_CHECK_INTERVAL  = ${e.REMINDER_CHECK_INTERVAL_MS ?? "(unset)"}`);
+  console.log(`  TEST_EMAIL               = ${e.TEST_EMAIL ?? "(unset)"}`);
+  console.log(`  TEST_EMAIL_TEMPLATE_ID   = ${e.TEST_EMAIL_TEMPLATE_ID ?? "(unset)"}`);
+  console.log(`  WATCH_FOLDER_ENABLED     = ${bool(e.WATCH_FOLDER_ENABLED)}`);
+  console.log(`  WATCH_FOLDER             = ${e.WATCH_FOLDER || "(unset)"}`);
+  console.log(`  USER_DOCUMENT_LIMIT      = ${e.USER_DOCUMENT_LIMIT ?? "(unset)"}`);
+  console.log(`  ALLOWED_ORIGINS          = ${e.ALLOWED_ORIGINS || "(unset)"}`);
+  console.log(`  ENDPOINT                 = ${e.ENDPOINT ?? "(unset)"}`);
+  console.log(`  REGION                   = ${e.REGION ?? "(unset)"}`);
+  console.log(`  BUCKET                   = ${e.BUCKET ?? "(unset)"}`);
+  console.log(`  ACCESS_KEY_ID            = ${mask(e.ACCESS_KEY_ID)}`);
+  console.log(`  SECRET_ACCESS_KEY        = ${e.SECRET_ACCESS_KEY ? "(set)" : "(unset)"}`);
+  return {
+    theme: "light",
+    port: parseInt(process.env.PORT ?? "3737"),
+
+    aiBackend: (process.env.AI_BACKEND as "openai" | "ollama") ?? "openai",
+    openAiKey: process.env.OPENAI_LOCAL_API_KEY ?? "",
+    openAiModel: process.env.OPENAI_MODEL ?? "gpt-4o-mini",
+    ollamaUrl: process.env.OLLAMA_URL ?? "http://localhost:11434",
+    ollamaModel: process.env.OLLAMA_MODEL ?? "llama3.1",
+
+    ocrLanguage: process.env.OCR_LANGUAGE ?? "heb+eng",
+    autoExtract: process.env.AUTO_EXTRACT !== "false",
+    extractionMaxChars: parseInt(process.env.EXTRACTION_MAX_CHARS ?? "8000"),
+
+    smtpHost: process.env.SMTP_HOST ?? "",
+    smtpPort: parseInt(process.env.SMTP_PORT ?? "587"),
+    smtpSecure: process.env.SMTP_SECURE === "true",
+    smtpUser: process.env.SMTP_USER ?? "",
+    smtpPass: process.env.SMTP_PASS ?? "",
+    smtpRejectUnauthorized: process.env.SMTP_REJECT_UNAUTHORIZED !== "false",
+    emailFrom: process.env.EMAIL_FROM ?? "",
+    emailFromName: process.env.EMAIL_FROM_NAME ?? "ReminderOCR",
+
+    reminderEnabled: process.env.REMINDER_ENABLED !== "false",
+    reminderAdvanceDays: (process.env.REMINDER_ADVANCE_DAYS ?? "30")
+      .split(",").map(d => parseInt(d.trim())).filter(n => !isNaN(n)),
+    reminderCheckIntervalMs: parseInt(process.env.REMINDER_CHECK_INTERVAL_MS ?? "60000"),
+    testEmail: process.env.TEST_EMAIL ?? "",
+    testEmailTemplateId: process.env.TEST_EMAIL_TEMPLATE_ID
+      ? parseInt(process.env.TEST_EMAIL_TEMPLATE_ID)
+      : null,
+
+    watchFolderEnabled: process.env.WATCH_FOLDER_ENABLED === "true",
+    watchFolder: process.env.WATCH_FOLDER ?? "",
+
+    googleClientId: process.env.GOOGLE_CLIENT_ID ?? "",
+    googleClientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3737/auth/google/callback",
+    sessionSecret: process.env.SESSION_SECRET ?? "",
+    allowedEmails: process.env.ALLOWED_EMAILS
+      ? process.env.ALLOWED_EMAILS.split(",").map(e => e.trim()).filter(Boolean)
+      : [],
+
+    allowedOrigins: process.env.ALLOWED_ORIGINS
+      ? process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim()).filter(Boolean)
+      : [],
+
+    userDocumentLimit: parseInt(process.env.USER_DOCUMENT_LIMIT ?? "25"),
+  };
+}
 
 let _settings: AppSettings | null = null;
 
-export function loadSettings(): AppSettings {
-  if (_settings) return _settings;
-
-  mkdirSync(_dataDir, { recursive: true });
-
-  if (existsSync(SETTINGS_PATH)) {
-    try {
-      const raw = readFileSync(SETTINGS_PATH, "utf-8");
-      const parsed = JSON.parse(raw) as Partial<AppSettings>;
-      // Env vars always win for secrets — never let saved settings override them
-      const envOverrides: Partial<AppSettings> = {};
-      if (process.env.OPENAI_API_KEY)       envOverrides.openAiKey          = process.env.OPENAI_API_KEY;
-      if (process.env.GOOGLE_CLIENT_ID)     envOverrides.googleClientId     = process.env.GOOGLE_CLIENT_ID;
-      if (process.env.GOOGLE_CLIENT_SECRET) envOverrides.googleClientSecret = process.env.GOOGLE_CLIENT_SECRET;
-      if (process.env.GOOGLE_REDIRECT_URI)  envOverrides.googleRedirectUri  = process.env.GOOGLE_REDIRECT_URI;
-      if (process.env.SESSION_SECRET)       envOverrides.sessionSecret      = process.env.SESSION_SECRET;
-      if (process.env.ALLOWED_EMAILS)       envOverrides.allowedEmails      = process.env.ALLOWED_EMAILS.split(",").map(e => e.trim());
-      if (process.env.SMTP_HOST)            envOverrides.smtpHost           = process.env.SMTP_HOST;
-      if (process.env.SMTP_PORT)            envOverrides.smtpPort           = parseInt(process.env.SMTP_PORT);
-      if (process.env.SMTP_SECURE)          envOverrides.smtpSecure         = process.env.SMTP_SECURE === "true";
-      if (process.env.SMTP_USER)            envOverrides.smtpUser           = process.env.SMTP_USER;
-      if (process.env.SMTP_PASS)            envOverrides.smtpPass           = process.env.SMTP_PASS;
-      if (process.env.EMAIL_FROM)           envOverrides.emailFrom          = process.env.EMAIL_FROM;
-      if (process.env.EMAIL_FROM_NAME)      envOverrides.emailFromName      = process.env.EMAIL_FROM_NAME;
-      if (process.env.DO_SPACES_KEY)        envOverrides.doSpacesKey        = process.env.DO_SPACES_KEY;
-      if (process.env.DO_SPACES_SECRET)     envOverrides.doSpacesSecret     = process.env.DO_SPACES_SECRET;
-      if (process.env.DO_SPACES_ENDPOINT)   envOverrides.doSpacesEndpoint   = process.env.DO_SPACES_ENDPOINT;
-      if (process.env.DO_SPACES_BUCKET)     envOverrides.doSpacesBucket     = process.env.DO_SPACES_BUCKET;
-      if (process.env.DO_SPACES_REGION)     envOverrides.doSpacesRegion     = process.env.DO_SPACES_REGION;
-      if (process.env.ALLOWED_ORIGINS)      envOverrides.allowedOrigins     = process.env.ALLOWED_ORIGINS.split(",").map(o => o.trim());
-      if (process.env.USER_DOCUMENT_LIMIT)  envOverrides.userDocumentLimit  = parseInt(process.env.USER_DOCUMENT_LIMIT);
-      _settings = { ...DEFAULTS, ...parsed, ...envOverrides };
-      return _settings;
-    } catch {
-      // corrupted — fall through to defaults
-    }
-  }
-
-  _settings = { ...DEFAULTS };
-  saveSettings(_settings);
+export function getSettings(): AppSettings {
+  if (!_settings) throw new Error("Settings not loaded — call loadSettings() at startup first");
   return _settings;
 }
 
-export function saveSettings(settings: AppSettings) {
-  mkdirSync(_dataDir, { recursive: true });
-  writeFileSync(SETTINGS_PATH, JSON.stringify(settings, null, 2), "utf-8");
-  _settings = settings;
+export function loadSettings(): AppSettings {
+  _settings = buildSettings();
+  return _settings;
 }
 
-export function setSetting<K extends keyof AppSettings>(key: K, value: AppSettings[K]) {
-  const current = loadSettings();
-  const updated = { ...current, [key]: value };
-  saveSettings(updated);
-  return updated;
+/** No-op kept for call-site compatibility — settings are now env-only. */
+export function saveSettings(_settings: AppSettings): void {
+  // intentionally empty
 }
 
-export function getSettings(): AppSettings {
-  return loadSettings();
+/** No-op kept for call-site compatibility. */
+export function setSetting<K extends keyof AppSettings>(_key: K, _value: AppSettings[K]): AppSettings {
+  return getSettings();
 }

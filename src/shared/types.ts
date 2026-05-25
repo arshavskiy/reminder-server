@@ -42,13 +42,6 @@ export interface AppSettings {
   sessionSecret?: string;
   allowedEmails?: string[];
 
-  // DigitalOcean Spaces (file storage)
-  doSpacesKey?: string;
-  doSpacesSecret?: string;
-  doSpacesEndpoint?: string;
-  doSpacesBucket?: string;
-  doSpacesRegion?: string;
-
   // CORS
   allowedOrigins?: string[];
 

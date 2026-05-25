@@ -38,7 +38,7 @@ export function registerDocumentRoutes(app: express.Application) {
     const filter: Record<string, any> = { ...baseFilter };
     if (status) filter.processing_status = status;
 
-    const [rows, total, totalAll] = await Promise.all([
+    const [rows, total, userSettings] = await Promise.all([
       col("documents")
         .find(filter)
         .sort({ created_at: -1 })
@@ -46,10 +46,14 @@ export function registerDocumentRoutes(app: express.Application) {
         .limit(limit)
         .toArray(),
       col("documents").countDocuments(filter),
-      status ? col("documents").countDocuments(baseFilter) : Promise.resolve(-1),
+      col("user_settings").findOne({ user_id: userId }),
     ]);
 
-    res.json({ rows: rows.map(flatDoc), total, totalAll: totalAll === -1 ? total : totalAll });
+    const us = userSettings as any;
+    const totalAll: number = us?.scanned_count ?? 0;
+    const documentLimit: number = us?.document_limit ?? getSettings().userDocumentLimit;
+
+    res.json({ rows: rows.map(flatDoc), total, totalAll, documentLimit });
   });
 
   // GET /api/documents/:id
@@ -88,8 +92,10 @@ export function registerDocumentRoutes(app: express.Application) {
     }
 
     if (userRole === "user") {
-      const count = await col("documents").countDocuments({ user_id: userId });
-      if (count >= getSettings().userDocumentLimit) {
+      const us = await col("user_settings").findOne({ user_id: userId }) as any;
+      const scanned: number = us?.scanned_count ?? 0;
+      const limit: number = us?.document_limit ?? getSettings().userDocumentLimit;
+      if (scanned >= limit) {
         res.status(403).json({ error: "document_limit_reached" });
         return;
       }
@@ -130,9 +136,21 @@ export function registerDocumentRoutes(app: express.Application) {
       }
 
       if (userRole === "user") {
-        const count = await col("documents").countDocuments({ user_id: userId });
-        if (count + files.length > getSettings().userDocumentLimit) {
+        const us = await col("user_settings").findOne({ user_id: userId }) as any;
+        const scanned: number = us?.scanned_count ?? 0;
+        const limit: number = us?.document_limit ?? getSettings().userDocumentLimit;
+        const remaining = limit - scanned;
+        if (remaining <= 0) {
           res.status(403).json({ error: "document_limit_reached" });
+          return;
+        }
+        if (files.length > remaining) {
+          res.status(403).json({
+            error: "document_limit_reached",
+            message: `ניתן להעלות עוד ${remaining} מסמך/ים בלבד (מגבלה: ${limit})`,
+            remaining,
+            limit,
+          });
           return;
         }
       }
@@ -153,6 +171,7 @@ export function registerDocumentRoutes(app: express.Application) {
           // If the result contains replacement chars, the name was already UTF-8
           if (displayName.includes("�")) displayName = file.originalname;
         } catch { /* keep original */ }
+        console.log(`[upload] "${displayName}" saved to ${destPath} (${file.size} bytes)`);
         const id = await importFile(destPath, undefined, userId, displayName);
         ids.push(String(id));
       }

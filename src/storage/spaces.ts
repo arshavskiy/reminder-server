@@ -31,13 +31,16 @@ function getStorageConfig(): StorageConfig | null {
   const railwayRegion = process.env.BUCKET_REGION ?? process.env.REGION ?? "auto";
 
   if (railwayEndpoint && railwayBucket && railwayKey && railwaySecret) {
+    const isAws = railwayEndpoint.includes("amazonaws.com");
+    const secret = railwaySecret;
+    console.log(`[storage] endpoint=${railwayEndpoint} bucket=${railwayBucket} key=${railwayKey.slice(0,8)}... secret_len=${secret.length} secret_end=${secret.slice(-6)} forcePathStyle=${!isAws}`);
     return {
       endpoint: normaliseEndpoint(railwayEndpoint),
       region: railwayRegion,
       key: railwayKey,
-      secret: railwaySecret,
+      secret,
       bucket: railwayBucket,
-      forcePathStyle: process.env.BUCKET_FORCE_PATH_STYLE === "true",
+      forcePathStyle: process.env.BUCKET_FORCE_PATH_STYLE === "true" || !isAws,
     };
   }
 

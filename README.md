@@ -74,7 +74,7 @@ Minimum required vars for local dev:
 
 ```env
 MONGODB_URI=mongodb://127.0.0.1:27017
-OPENAI_API_KEY=sk-...
+OPENAI_LOCAL_API_KEY=sk-...
 GOOGLE_CLIENT_ID=...
 GOOGLE_CLIENT_SECRET=...
 GOOGLE_REDIRECT_URI=http://localhost:3737/auth/google/callback
@@ -104,7 +104,7 @@ Open **http://localhost:5173**. Vite proxies `/api`, `/auth`, and `/ws` to the s
 | `MONGODB_URI` | ✓ | `mongodb://127.0.0.1:27017` | Connection string |
 | `MONGODB_DB` | | `reminder-app` | Database name |
 | `PORT` | | `3737` | HTTP port |
-| `OPENAI_API_KEY` | ✓ | — | GPT-4o-mini |
+| `OPENAI_LOCAL_API_KEY` | ✓ | — | GPT-4o-mini |
 | `OLLAMA_URL` | | `http://localhost:11434` | Local inference endpoint |
 | `OLLAMA_MODEL` | | `llama3.1` | Ollama model name |
 | `GOOGLE_CLIENT_ID` | ✓ | — | OAuth 2.0 client ID |
