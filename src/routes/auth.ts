@@ -117,6 +117,8 @@ export function registerAuthRoutes(app: express.Application) {
             email_from_name: null,
             reminder_advance_days: "[90,60,30]",
             ocr_language: "heb+eng",
+            scanned_count: 0,
+            document_limit: getSettings().userDocumentLimit,
           },
         },
         { upsert: true }
@@ -186,6 +188,8 @@ export function registerAuthRoutes(app: express.Application) {
             email_from_name: null,
             reminder_advance_days: "[90,60,30]",
             ocr_language: "heb+eng",
+            scanned_count: 0,
+            document_limit: getSettings().userDocumentLimit,
           },
         },
         { upsert: true }

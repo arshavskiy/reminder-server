@@ -36,7 +36,13 @@ function computeHash(filePath: string): string {
   return createHash("sha256").update(readFileSync(filePath)).digest("hex");
 }
 
-export async function importFile(originalPath: string, push?: PushFn, userId?: string, displayName?: string): Promise<string> {
+export interface ImportResult {
+  id: string;
+  duplicate: boolean;
+  fileName: string;
+}
+
+export async function importFile(originalPath: string, push?: PushFn, userId?: string, displayName?: string): Promise<ImportResult> {
   const settings = getSettings();
 
   const ext = extname(originalPath);
@@ -51,33 +57,38 @@ export async function importFile(originalPath: string, push?: PushFn, userId?: s
   const existing = await col("documents").findOne(dedupFilter);
   if (existing) {
     console.log(`[importer] Skipping duplicate: ${fileName}`);
-    return existing._id!.toString();
+    return { id: existing._id!.toString(), duplicate: true, fileName };
   }
 
-  // Copy to managed documents folder
-  const docsDir = join(getDataDir(), "documents");
-  mkdirSync(docsDir, { recursive: true });
-  const managedPath = join(docsDir, `${fileHash}${ext}`);
-  if (!existsSync(managedPath)) {
-    copyFileSync(originalPath, managedPath);
-  }
-  console.log(`[importer] Local copy: ${managedPath}`);
-
-  // Upload to S3-compatible object storage if configured
+  // Copy to managed documents folder (skipped when SAVE_FILE=false)
+  let managedPath: string | null = null;
   let spacesKey: string | null = null;
   let spacesUrl: string | null = null;
-  if (spacesEnabled()) {
-    try {
-      spacesKey = `documents/${fileHash}${ext}`;
-      spacesUrl = await uploadToSpaces(managedPath, spacesKey, mimeType);
-      console.log(`[importer] S3 upload: ${spacesKey} → ${spacesUrl}`);
-    } catch (err) {
-      console.error(`[importer] Object storage upload failed, keeping local copy:`, err);
-      spacesKey = null;
-      spacesUrl = null;
+
+  if (!settings.processOnly) {
+    const docsDir = join(getDataDir(), "documents");
+    mkdirSync(docsDir, { recursive: true });
+    managedPath = join(docsDir, `${fileHash}${ext}`);
+    if (!existsSync(managedPath)) {
+      copyFileSync(originalPath, managedPath);
+    }
+    console.log(`[importer] Local copy: ${managedPath}`);
+
+    if (spacesEnabled()) {
+      try {
+        spacesKey = `documents/${fileHash}${ext}`;
+        spacesUrl = await uploadToSpaces(managedPath, spacesKey, mimeType);
+        console.log(`[importer] S3 upload: ${spacesKey} → ${spacesUrl}`);
+      } catch (err) {
+        console.error(`[importer] Object storage upload failed, keeping local copy:`, err);
+        spacesKey = null;
+        spacesUrl = null;
+      }
+    } else {
+      console.log(`[importer] Object storage not configured — local only`);
     }
   } else {
-    console.log(`[importer] Object storage not configured — local only`);
+    console.log(`[importer] PROCESS_ONLY=true — skipping local copy and S3 upload`);
   }
 
   const now = new Date();
@@ -103,7 +114,7 @@ export async function importFile(originalPath: string, push?: PushFn, userId?: s
   push?.({ type: "document:queued", documentId: documentId as any, fileName });
   console.log(`[importer] Queued document ${documentId}: ${fileName}`);
 
-  processDocument(documentId, managedPath, mimeType, ext, push, userId).catch(async (err) => {
+  processDocument(documentId, managedPath ?? originalPath, mimeType, ext, push, userId).catch(async (err) => {
     console.error(`[importer] Fatal error processing doc ${documentId}:`, err);
     await col("documents").updateOne(
       { _id: insertResult.insertedId },
@@ -112,7 +123,7 @@ export async function importFile(originalPath: string, push?: PushFn, userId?: s
     push?.({ type: "document:done", documentId: documentId as any, status: "error", error: String(err) });
   });
 
-  return documentId;
+  return { id: documentId, duplicate: false, fileName };
 }
 
 export async function processDocument(

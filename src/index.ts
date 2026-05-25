@@ -168,7 +168,8 @@ function startWatchFolder() {
       if (!existsSync(filePath)) return;
       console.log(`[watch] New file detected: ${filename}`);
       try {
-        await importFile(filePath);
+        const r = await importFile(filePath);
+        if (r.duplicate) console.log(`[watch] Duplicate skipped: ${r.fileName}`);
       } catch (err) {
         console.error(`[watch] Import failed for ${filename}:`, err);
       }

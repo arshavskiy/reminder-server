@@ -54,6 +54,7 @@ function buildSettings(): AppSettings {
   console.log(`  WATCH_FOLDER_ENABLED     = ${bool(e.WATCH_FOLDER_ENABLED)}`);
   console.log(`  WATCH_FOLDER             = ${e.WATCH_FOLDER || "(unset)"}`);
   console.log(`  USER_DOCUMENT_LIMIT      = ${e.USER_DOCUMENT_LIMIT ?? "(unset)"}`);
+  console.log(`  PROCESS_ONLY             = ${e.PROCESS_ONLY ?? "(unset, default false)"}`);
   console.log(`  ALLOWED_ORIGINS          = ${e.ALLOWED_ORIGINS || "(unset)"}`);
   console.log(`  ENDPOINT                 = ${e.ENDPOINT ?? "(unset)"}`);
   console.log(`  REGION                   = ${e.REGION ?? "(unset)"}`);
@@ -108,6 +109,7 @@ function buildSettings(): AppSettings {
       : [],
 
     userDocumentLimit: parseInt(process.env.USER_DOCUMENT_LIMIT ?? "25"),
+    processOnly: process.env.PROCESS_ONLY === "true",
   };
 }
 

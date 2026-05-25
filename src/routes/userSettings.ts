@@ -22,7 +22,7 @@ export function registerUserSettingsRoutes(app: express.Application) {
         reminder_advance_days: "[90,60,30]",
         ocr_language: "heb+eng",
         scanned_count: 0,
-        document_limit: getSettings().userDocumentLimit,
+        document_limit: getSettings().userDocumentLimit,  // per-user override, defaults to env
       };
       await col("user_settings").updateOne(
         { user_id: auth.userId },

@@ -47,6 +47,7 @@ export interface AppSettings {
 
   // Quotas
   userDocumentLimit: number;
+  processOnly: boolean;
 }
 
 // Phase 2: Authentication types

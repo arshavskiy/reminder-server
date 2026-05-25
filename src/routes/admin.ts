@@ -25,16 +25,27 @@ export function registerAdminRoutes(app: express.Application) {
     }
   }
 
-  // GET /api/admin/users — list all users
+  // GET /api/admin/users — list all users with their quota info
   app.get("/api/admin/users", async (req, res) => {
     if (!await adminAuth(req, res)) return;
 
-    const users = await col("users")
-      .find({})
-      .sort({ created_at: -1 })
-      .toArray();
+    const [users, settings] = await Promise.all([
+      col("users").find({}).sort({ created_at: -1 }).toArray(),
+      col("user_settings").find({}).toArray(),
+    ]);
 
-    res.json(users.map(flatUser));
+    const settingsMap = new Map(
+      (settings as any[]).map((s) => [s.user_id, s])
+    );
+
+    res.json(users.map((u: any) => {
+      const us = settingsMap.get(u._id.toString()) as any;
+      return {
+        ...flatUser(u),
+        scanned_count: us?.scanned_count ?? 0,
+        document_limit: us?.document_limit ?? null,
+      };
+    }));
   });
 
   // PUT /api/admin/users/:id — update role / is_active
@@ -77,10 +88,43 @@ export function registerAdminRoutes(app: express.Application) {
     res.json(flatUser(updated));
   });
 
+  // PUT /api/admin/users/:id/document-limit — set per-user document limit
+  app.put("/api/admin/users/:id/document-limit", async (req, res) => {
+    if (!await adminAuth(req, res)) return;
+
+    const { limit } = req.body as { limit: number };
+    if (typeof limit !== "number" || limit < 0) {
+      res.status(400).json({ error: "limit must be a non-negative number" });
+      return;
+    }
+
+    let userId: string;
+    try {
+      userId = new ObjectId(req.params.id).toString();
+    } catch {
+      res.status(400).json({ error: "Invalid user id" });
+      return;
+    }
+
+    // Verify user exists
+    const user = await col("users").findOne({ _id: new ObjectId(req.params.id) });
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    await col("user_settings").updateOne(
+      { user_id: userId },
+      { $set: { document_limit: limit }, $setOnInsert: { user_id: userId, scanned_count: 0 } },
+      { upsert: true }
+    );
+
+    res.json({ userId, document_limit: limit });
+  });
+
   // GET /api/admin/settings — protected settings (same as /api/settings but explicit admin check)
   app.get("/api/admin/settings", async (req, res) => {
     if (!await adminAuth(req, res)) return;
-    // Delegate to settings store — just confirm access is allowed
     res.json({ allowed: true });
   });
 }

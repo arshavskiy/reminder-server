@@ -50,6 +50,7 @@ export function registerDocumentRoutes(app: express.Application) {
     ]);
 
     const us = userSettings as any;
+    console.log(`[documents] userId=${userId} user_settings:`, us ? { scanned_count: us.scanned_count, document_limit: us.document_limit } : "NOT FOUND");
     const totalAll: number = us?.scanned_count ?? 0;
     const documentLimit: number = us?.document_limit ?? getSettings().userDocumentLimit;
 
@@ -107,8 +108,8 @@ export function registerDocumentRoutes(app: express.Application) {
       return;
     }
     try {
-      const id = await importFile(body.filePath, undefined, userId);
-      res.json({ id });
+      const result = await importFile(body.filePath, undefined, userId);
+      res.json({ id: result.id, duplicate: result.duplicate });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
@@ -159,6 +160,7 @@ export function registerDocumentRoutes(app: express.Application) {
       mkdirSync(uploadDir, { recursive: true });
 
       const ids: string[] = [];
+      const duplicates: string[] = [];
       for (const file of files) {
         const ext = extname(file.originalname) || "";
         const destPath = join(uploadDir, `${Date.now()}${ext}`);
@@ -172,11 +174,12 @@ export function registerDocumentRoutes(app: express.Application) {
           if (displayName.includes("�")) displayName = file.originalname;
         } catch { /* keep original */ }
         console.log(`[upload] "${displayName}" saved to ${destPath} (${file.size} bytes)`);
-        const id = await importFile(destPath, undefined, userId, displayName);
-        ids.push(String(id));
+        const result = await importFile(destPath, undefined, userId, displayName);
+        ids.push(result.id);
+        if (result.duplicate) duplicates.push(result.fileName);
       }
 
-      res.json({ ids });
+      res.json({ ids, duplicates });
     } catch (err) {
       res.status(500).json({ error: String(err) });
     }
